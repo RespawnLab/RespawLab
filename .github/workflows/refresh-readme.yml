@@ -1,0 +1,57 @@
+name: ♻️ Auto Update GitHub Stats
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-stats:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      # ======================
+      # 生成本地图片：stats + top-langs
+      # ======================
+      - name: 📊 Generate stats card
+        uses: soulteary/github-readme-stats-action@v1.0.0
+        with:
+          card: stats
+          options: 'username=${{ github.repository_owner }}&show_icons=true&theme=tokyonight&hide_border=true&bg_color=0A0F1C&title_color=00F0FF&icon_color=00F0FF&text_color=CDEFFF'
+          path: profile/stats.svg
+          token: ${{ secrets.GH_PAT }}
+
+      - name: 📈 Generate top languages card
+        uses: soulteary/github-readme-stats-action@v1.0.0
+        with:
+          card: top-langs
+          options: 'username=${{ github.repository_owner }}&layout=compact&theme=tokyonight&hide_border=true&bg_color=0A0F1C&title_color=00F0FF&text_color=CDEFFF'
+          path: profile/top-langs.svg
+          token: ${{ secrets.GH_PAT }}
+
+      # ======================
+      # 自动刷新 streak 缓存
+      # ======================
+      - name: 🔄 Auto refresh streak cache
+        run: |
+          DATE=$(date +%Y%m%d)
+          sed -i "s/cache_bust=[0-9]*/cache_bust=${DATE}/g" README.md
+
+      # ======================
+      # 一次性提交所有修改
+      # ======================
+      - name: 🚀 Commit & Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.nore.github.com"
+          git add README.md profile/*.svg
+          git commit -m "📊 Update stats & refresh streak cache" || exit 0
+          git push
